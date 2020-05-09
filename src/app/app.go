@@ -70,7 +70,6 @@ func (a *app) parse(n *html.Node) {
 	if n.Type == html.ElementNode && n.Data == "a" {
 		for _, at := range n.Attr {
 			if at.Key == "href" {
-				fmt.Println(at.Val)
 				if !a.exist(at.Val) {
 					a.add(at.Val)
 				}
