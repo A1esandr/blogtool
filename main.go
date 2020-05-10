@@ -13,6 +13,6 @@ func main() {
 	}
 
 	app := app2.NewApp(url)
-	app.Parse()
+	app.Start()
 	app.Print()
 }

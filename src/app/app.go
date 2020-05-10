@@ -6,12 +6,13 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"golang.org/x/net/html"
 )
 
 type App interface {
-	Parse()
+	Start()
 	Print()
 }
 
@@ -20,6 +21,8 @@ type app struct {
 	links    []string
 	rawLinks []string
 	loaded   []string
+	left     []string
+	lock     sync.Mutex
 }
 
 func NewApp(url string) App {
@@ -28,8 +31,13 @@ func NewApp(url string) App {
 	}
 }
 
-func (a *app) Parse() {
-	body, err := a.load(a.url)
+func (a *app) Start() {
+	a.process(a.url)
+	a.next()
+}
+
+func (a *app) process(url string) {
+	body, err := a.load(url)
 	if err != nil {
 		log.Println(err.Error())
 	}
@@ -41,9 +49,12 @@ func (a *app) Parse() {
 }
 
 func (a *app) Print() {
-	for _, link := range a.rawLinks {
+	fmt.Println("Print result")
+	for _, link := range a.links {
 		fmt.Println(link)
 	}
+	fmt.Println("Total found", len(a.rawLinks), "raw links")
+	fmt.Println("Total found", len(a.links), "links")
 }
 
 func (a *app) load(url string) ([]byte, error) {
@@ -63,6 +74,10 @@ func (a *app) load(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	a.lock.Lock()
+	a.loaded = append(a.loaded, url)
+	a.lock.Unlock()
+	log.Println("Loaded", url)
 	return body, nil
 }
 
@@ -70,9 +85,11 @@ func (a *app) parse(n *html.Node) {
 	if n.Type == html.ElementNode && n.Data == "a" {
 		for _, at := range n.Attr {
 			if at.Key == "href" {
-				if !a.exist(at.Val) {
+				a.lock.Lock()
+				if strings.HasPrefix(at.Val, a.url) && !a.exist(at.Val) {
 					a.add(at.Val)
 				}
+				a.lock.Unlock()
 				break
 			}
 		}
@@ -91,6 +108,46 @@ func (a *app) exist(url string) bool {
 	return false
 }
 
+func (a *app) processed(url string) bool {
+	for _, link := range a.loaded {
+		if url == link {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *app) add(url string) {
 	a.rawLinks = append(a.rawLinks, url)
+	if strings.HasSuffix(url, ".html") {
+		a.links = append(a.links, url)
+	}
+	if !a.processed(url) {
+		a.left = append(a.left, url)
+	}
+}
+
+func (a *app) next() {
+	if len(a.left) == 0 {
+		return
+	}
+
+	a.lock.Lock()
+
+	log.Println("Processed", len(a.loaded))
+	log.Println("Left", len(a.left))
+
+	var wg sync.WaitGroup
+
+	for _, link := range a.left {
+		wg.Add(1)
+		go func(url string) {
+			a.process(url)
+			wg.Done()
+		}(link)
+	}
+	a.left = []string{}
+	a.lock.Unlock()
+	wg.Wait()
+	a.next()
 }
