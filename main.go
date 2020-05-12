@@ -1,7 +1,7 @@
 package main
 
 import (
-	app2 "blogtool/src/app"
+	appack "blogtool/src/app"
 	"log"
 	"os"
 )
@@ -11,8 +11,16 @@ func main() {
 	if len(url) == 0 {
 		log.Fatalf("URL not set!")
 	}
+	backup := os.Getenv("MAKE_BACKUP") == "1"
+	backupPath := os.Getenv("BACKUP_PATH")
 
-	app := app2.NewApp(url)
+	config := appack.Config{
+		Url:        url,
+		Backup:     backup,
+		BackupPath: backupPath,
+	}
+
+	app := appack.NewApp(config)
 	app.Start()
 	app.Print()
 }

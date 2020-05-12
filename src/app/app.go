@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/html"
 )
@@ -17,17 +20,38 @@ type App interface {
 }
 
 type app struct {
-	url      string
-	links    []string
-	rawLinks []string
-	loaded   []string
-	left     []string
-	lock     sync.Mutex
+	url        string
+	config     Config
+	backupPath string
+	links      []string
+	rawLinks   []string
+	loaded     []string
+	left       []string
+	lock       sync.Mutex
 }
 
-func NewApp(url string) App {
+func NewApp(config Config) App {
+	backupPath := config.BackupPath
+	if len(backupPath) > 0 && !strings.HasSuffix(backupPath, "/") {
+		backupPath += "/"
+	}
+	backupPath += strings.Split(config.Url, "/")[2]
+	backupPath += "/"
+	t := time.Now()
+	backupPath += t.Format("2006-01-02")
+	backupPath += "/"
+
+	if _, err := os.Stat(backupPath); os.IsNotExist(err) && config.Backup {
+		err = os.MkdirAll(backupPath, os.ModePerm)
+		if err != nil {
+			log.Fatalf(err.Error())
+		}
+	}
+
 	return &app{
-		url: url,
+		url:        config.Url,
+		config:     config,
+		backupPath: backupPath,
 	}
 }
 
@@ -37,15 +61,36 @@ func (a *app) Start() {
 }
 
 func (a *app) process(url string) {
-	body, err := a.load(url)
-	if err != nil {
-		log.Println(err.Error())
+	var body []byte
+	for {
+		b, err := a.load(url)
+		if err != nil {
+			log.Println(err.Error())
+		}
+		if len(b) > 1000 {
+			body = b
+			break
+		}
+		log.Println("Error loading", url)
+		time.Sleep(time.Duration(100+rand.Intn(1000)) * time.Millisecond)
+	}
+	if a.config.Backup && strings.HasSuffix(url, ".html") {
+		a.backup(body, url)
 	}
 	doc, err := html.Parse(strings.NewReader(string(body)))
 	if err != nil {
 		log.Fatal(err)
 	}
 	a.parse(doc)
+}
+
+func (a *app) backup(file []byte, url string) {
+	name := strings.ReplaceAll(url, "://", "")
+	name = strings.ReplaceAll(name, "/", "_")
+	err := ioutil.WriteFile(a.backupPath+name, file, 0644)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (a *app) Print() {
