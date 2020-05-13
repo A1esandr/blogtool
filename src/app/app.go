@@ -6,7 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -27,25 +27,21 @@ type app struct {
 	rawLinks   []string
 	loaded     []string
 	left       []string
+	items      []item
 	lock       sync.Mutex
+}
+
+type item struct {
+	url   string
+	title string
 }
 
 func NewApp(config Config) App {
 	backupPath := config.BackupPath
-	if len(backupPath) > 0 && !strings.HasSuffix(backupPath, "/") {
-		backupPath += "/"
-	}
-	backupPath += strings.Split(config.Url, "/")[2]
-	backupPath += "/"
-	t := time.Now()
-	backupPath += t.Format("2006-01-02")
-	backupPath += "/"
 
-	if _, err := os.Stat(backupPath); os.IsNotExist(err) && config.Backup {
-		err = os.MkdirAll(backupPath, os.ModePerm)
-		if err != nil {
-			log.Fatalf(err.Error())
-		}
+	if config.Backup {
+		configurer := NewPathConfigurer()
+		backupPath = configurer.Configure(backupPath, config.Url)
 	}
 
 	return &app{
@@ -81,7 +77,7 @@ func (a *app) process(url string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	a.parse(doc)
+	a.parse(doc, &url)
 }
 
 func (a *app) backup(file []byte, url string) {
@@ -95,6 +91,15 @@ func (a *app) backup(file []byte, url string) {
 
 func (a *app) Print() {
 	fmt.Println("Print result")
+
+	sort.Slice(a.items, func(i, j int) bool {
+		return a.items[i].url < a.items[j].url
+	})
+
+	for _, item := range a.items {
+		fmt.Println("<li><a href=\"" + item.url + "\">" + item.title + "</a></li>")
+	}
+
 	for _, link := range a.links {
 		fmt.Println(link)
 	}
@@ -126,7 +131,7 @@ func (a *app) load(url string) ([]byte, error) {
 	return body, nil
 }
 
-func (a *app) parse(n *html.Node) {
+func (a *app) parse(n *html.Node, url *string) {
 	if n.Type == html.ElementNode && n.Data == "a" {
 		for _, at := range n.Attr {
 			if at.Key == "href" {
@@ -138,9 +143,23 @@ func (a *app) parse(n *html.Node) {
 				break
 			}
 		}
+	} else if strings.HasSuffix(*url, ".html") {
+		if n.Type == html.ElementNode && n.Data == "h3" {
+			for _, at := range n.Attr {
+				if at.Key == "class" && at.Val == "post-title entry-title" {
+					a.lock.Lock()
+
+					title := strings.ReplaceAll(n.FirstChild.Data, "\n", "")
+					a.items = append(a.items, item{url: *url, title: title})
+
+					a.lock.Unlock()
+					break
+				}
+			}
+		}
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		a.parse(c)
+		a.parse(c, url)
 	}
 }
 
