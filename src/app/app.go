@@ -67,12 +67,12 @@ func (a *app) process(url string) {
 		if err != nil {
 			log.Println(err.Error())
 		}
-		if len(b) > 1000 {
+		if len(b) > 1000 || !strings.HasSuffix(url, ".html") {
 			body = b
 			break
 		}
 		log.Println("Error loading", url)
-		time.Sleep(time.Duration(100+rand.Intn(1000)) * time.Millisecond)
+		time.Sleep(time.Duration(300+rand.Intn(1000)) * time.Millisecond)
 	}
 	if a.config.Backup && strings.HasSuffix(url, ".html") {
 		a.backup(body, url)
