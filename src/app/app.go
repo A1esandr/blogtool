@@ -40,8 +40,8 @@ func NewApp(config Config) App {
 	backupPath := config.BackupPath
 
 	if config.Backup {
-		configurer := NewPathConfigurer()
-		backupPath = configurer.Configure(backupPath, config.Url)
+		configurator := NewPathConfigurer()
+		backupPath = configurator.Configure(backupPath, config.Url)
 	}
 
 	return &app{
@@ -70,9 +70,7 @@ func (a *app) process(url string) {
 		log.Println("Error loading", url)
 		time.Sleep(time.Duration(300+rand.Intn(1000)) * time.Millisecond)
 	}
-	if a.config.Backup && strings.HasSuffix(url, ".html") {
-		a.backup(body, url)
-	}
+	a.backup(body, url)
 	doc, err := html.Parse(strings.NewReader(string(body)))
 	if err != nil {
 		log.Fatal(err)
@@ -81,6 +79,9 @@ func (a *app) process(url string) {
 }
 
 func (a *app) backup(file []byte, url string) {
+	if !a.config.Backup || !strings.HasSuffix(url, ".html") {
+		return
+	}
 	name := strings.ReplaceAll(url, "://", "")
 	name = strings.ReplaceAll(name, "/", "_")
 	err := ioutil.WriteFile(a.backupPath+name, file, 0644)
