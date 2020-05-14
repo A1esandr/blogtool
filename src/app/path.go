@@ -7,27 +7,21 @@ import (
 	"time"
 )
 
+const delimiter = "/"
+
 type pathConfig struct {
 }
 
-type PathConfigurer interface {
+type PathConfigurator interface {
 	Configure(base, url string) string
 }
 
-func NewPathConfigurer() PathConfigurer {
+func NewPathConfigurator() PathConfigurator {
 	return &pathConfig{}
 }
 
 func (p *pathConfig) Configure(base, url string) string {
-	backupPath := base
-	if len(backupPath) > 0 && !strings.HasSuffix(backupPath, "/") {
-		backupPath += "/"
-	}
-	backupPath += strings.Split(url, "/")[2]
-	backupPath += "/"
-	t := time.Now()
-	backupPath += t.Format("2006-01-02")
-	backupPath += "/"
+	backupPath := p.compose(base, url)
 
 	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
 		err = os.MkdirAll(backupPath, os.ModePerm)
@@ -37,4 +31,21 @@ func (p *pathConfig) Configure(base, url string) string {
 	}
 
 	return backupPath
+}
+
+func (p *pathConfig) compose(base, url string) string {
+	sb := strings.Builder{}
+	sb.WriteString(base)
+	if base != "" && !strings.HasSuffix(base, delimiter) {
+		sb.WriteString(delimiter)
+	}
+	parts := strings.Split(url, delimiter)
+	if len(parts) > 2 {
+		sb.WriteString(parts[2])
+		sb.WriteString(delimiter)
+	}
+	t := time.Now()
+	sb.WriteString(t.Format("2006-01-02"))
+	sb.WriteString(delimiter)
+	return sb.String()
 }

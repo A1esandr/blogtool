@@ -40,7 +40,7 @@ func NewApp(config Config) App {
 	backupPath := config.BackupPath
 
 	if config.Backup {
-		configurator := NewPathConfigurer()
+		configurator := NewPathConfigurator()
 		backupPath = configurator.Configure(backupPath, config.Url)
 	}
 

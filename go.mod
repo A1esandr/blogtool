@@ -2,4 +2,7 @@ module blogtool
 
 go 1.14
 
-require golang.org/x/net v0.0.0-20200506145744-7e3656a0809f
+require (
+	github.com/stretchr/testify v1.5.1
+	golang.org/x/net v0.0.0-20200506145744-7e3656a0809f
+)
