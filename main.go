@@ -13,11 +13,13 @@ func main() {
 	}
 	backup := os.Getenv("MAKE_BACKUP") == "1"
 	backupPath := os.Getenv("BACKUP_PATH")
+	printAll := os.Getenv("PRINT_ALL") == "1"
 
 	config := appack.Config{
 		Url:        url,
 		Backup:     backup,
 		BackupPath: backupPath,
+		PrintAll:   printAll,
 	}
 
 	app := appack.NewApp(config)

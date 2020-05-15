@@ -93,12 +93,14 @@ func (a *app) backup(file []byte, url string) {
 func (a *app) Print() {
 	fmt.Println("Print result")
 
-	sort.Slice(a.items, func(i, j int) bool {
-		return a.items[i].url < a.items[j].url
-	})
+	if a.config.PrintAll {
+		sort.Slice(a.items, func(i, j int) bool {
+			return a.items[i].url < a.items[j].url
+		})
 
-	for _, item := range a.items {
-		fmt.Println("<li><a href=\"" + item.url + "\">" + item.title + "</a></li>")
+		for _, item := range a.items {
+			fmt.Println("<li><a href=\"" + item.url + "\">" + item.title + "</a></li>")
+		}
 	}
 
 	for _, link := range a.links {
