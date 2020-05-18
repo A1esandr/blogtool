@@ -2,12 +2,17 @@ package main
 
 import (
 	appack "blogtool/src/app"
+	"flag"
 	"log"
 	"os"
 )
 
 func main() {
+	var urlFlag = flag.String("url", "", "Url for site. Like, http://example.com")
 	url := os.Getenv("URL")
+	if len(url) == 0 {
+		url = *urlFlag
+	}
 	if len(url) == 0 {
 		log.Fatalf("URL not set!")
 	}
